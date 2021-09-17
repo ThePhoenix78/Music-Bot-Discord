@@ -13,7 +13,7 @@ import os.path
 import discord
 
 
-version = "1.2.3"
+version = "1.2.4"
 prefix = "!"
 bot_token = "YOUR TOKEN HERE"
 
@@ -22,7 +22,8 @@ intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=prefix, intents=intents)
 
-msgnofound = "Error! No music was found"
+msgnofound = "Error! No music was found locally!"
+internet_msg = " I will look for it on the internet"
 serv_list: dict = {}
 
 depart = os.getcwd().replace("\\", "/")
@@ -189,16 +190,19 @@ def telecharger(url):
 
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            video_title = info.get('title', None)
-            ydl.cache.remove()
+            # video_title = info.get('title', None)
+            # video_len = info.get('duration')
+            # ydl.download([url])
+            # ydl.cache.remove()
 
         for name in os.listdir():
-            if video_title in name:
-                os.system("move /Y {} {}".format(f'"{name}"', f'"{down_dir}/{video_title}-{music}.mp3"'))
+            if music in name:
+                os.system('move /Y {} {}'.format(f'"{name}"', f'{down_dir}/"{name}"'))
+                break
 
-        url = music
-
+        url = f'{name}'
     return url
+
 
 def search_internet_music(music_name):
     query_string = urllib.parse.urlencode({"search_query": music_name})
@@ -406,12 +410,6 @@ def lecteur(serv, music: str=None, replay=False):
         serv.current_music = serv.temp_search.pop(0)
 
     elif music:
-        serv.index = 0
-        serv.search = music
-
-        if not serv.search:
-            return False
-
         serv.filter = music
         shuffle(serv.search)
         serv.current_music = serv.search[serv.index]
@@ -494,7 +492,7 @@ async def ping(ctx):
     await ctx.send(f':ping_pong: **Pong !** {round(client.latency * 1000)}ms')
 
 
-@client.command(pass_context=True, aliases=["p2"])
+@client.command(pass_context=True, aliases=["p"])
 async def play(ctx, *, music: str):
     serv = serv_list[ctx.guild.name]
     serv.reset_values()
@@ -528,15 +526,16 @@ async def play(ctx, *, music: str):
     search = recherche(elem, testouet)
 
     if not search:
-        await ctx.send(msgnofound+" search for it on the internet")
+        await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
         elem, testouet = convertir(music)
         search = recherche(elem, testouet)
 
     if not search:
-        await ctx.channel.send(msgnofound)
+        await ctx.send(msgnofound)
         return
 
+    serv.search = search
     if lecteur(serv, search):
         await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
     else:
@@ -680,13 +679,14 @@ async def playnext(ctx, *, music):
     search = recherche(elem, testouet)
 
     if not search:
-        await ctx.send(msgnofound+" search for it on the internet")
+        await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
         elem, testouet = convertir(music)
         search = recherche(elem, testouet)
 
     if not search:
         await ctx.send(msgnofound)
+        return
 
     serv.temp_search = search
     await ctx.send(f"Added {music}")
@@ -701,13 +701,14 @@ async def add(ctx, *, music):
     search = recherche(elem, testouet)
 
     if not search:
-        await ctx.send(msgnofound+" search for it on the internet")
+        await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
         elem, testouet = convertir(music)
         search = recherche(elem, testouet)
 
     if not search:
         await ctx.send(msgnofound)
+        return
 
     serv.search = search
     await ctx.send(f"Added {music}")
@@ -939,7 +940,7 @@ async def sf(ctx, *, music: str):
     search = recherche(elem, testouet)
 
     if not search:
-        await ctx.send(msgnofound+" search for it on the internet")
+        await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
         elem, testouet = convertir(music)
         search = recherche(elem, testouet)

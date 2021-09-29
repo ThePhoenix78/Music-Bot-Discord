@@ -1,4 +1,4 @@
-# Python Music Bot forDiscord
+# Python Music Bot for Discord
 A open sourced music bot for discord in python
 
 - How to use?

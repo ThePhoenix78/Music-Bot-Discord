@@ -13,21 +13,58 @@ import os.path
 import discord
 
 
-version = "1.2.4"
+version = "1.2.7"
 prefix = "!"
-bot_token = "YOUR TOKEN HERE"
+
+try:
+    with open("bot_token", "r") as f:
+        bot_token = f.readlines()[0].strip()
+except FileNotFoundError:
+    with open("bot_token", "w") as f:
+        f.write("TOKEN_HERE")
+    bot_token = ""
 
 intents = discord.Intents.default()
 # intents.presences = True
 intents.members = True
-client = commands.Bot(command_prefix=prefix, intents=intents)
+client = commands.Bot(command_prefix=prefix, intents=intents, activity=discord.Game("Music go!"), status=discord.Status.online)
 
-msgnofound = "Error! No music was found locally!"
+
+idk_voice_channel_msg = "I don't think I am in a voice channel"
+argument_msg_error = 'Please pass in all required arguments'
+msg_not_playing_error = "Music not playing failed pause"
+remove_from_playlist_msg = "Removed {} from playlist"
+remove_playlist_msg = "playlist {} has been removed"
 internet_msg = " I will look for it on the internet"
+get_ready_msg = "Getting everything ready now"
+msgnofound = "Error! No music was found locally!"
+playlist_not_found = "Error! playlist not found"
+heavy_file_msg = "The file : {} is too heavy"
+music_not_paused_msg = "Music is not paused"
+failed_stop = "No music playing failed to stop"
+connection_msg = "The bot is connected to"
+connection_msg = "Music paused"
+connection_msg = "Volume set on"
+set_loop_msg = "Set looping on"
+send_file_msg = "sending file"
+resume_msg = "Resumed music"
+result_msg = "results found"
+restart_msg = "Restarting bot"
+stop_msg = "Music stopped"
+to_queue_msg = "to queue!"
+playlist_msg = "playlist"
+playing_msg = "Playing"
+error_msg = "Error!"
+music_msg = "Music"
+join_msg = "Joined"
+added_msg = "Added"
+left_msg = "Left"
+to_msg = "to"
+
+
 serv_list: dict = {}
 
 depart = os.getcwd().replace("\\", "/")
-
 
 music_dir = f"{depart}/Musica"
 playlist_dir = f"{music_dir}/playlists"
@@ -83,15 +120,15 @@ except FileExistsError:
     pass
 
 
-# ----------------------------MOTEUR DE RECHERCHE-------------------------------
+# ----------------------------SEARCH ENGINE-------------------------------
 
-def convertir(elem):
-    testouet = 0
+def convert_request(elem: str):
+    res_convert = 0
     if " || " in elem:
         elem = elem.split("||")
         for i in range(len(elem)):
             elem[i] = elem[i].strip().split(" ")
-        testouet = 1
+        res_convert = 1
 
     elif " not " in elem:
         value = elem.split()
@@ -106,61 +143,62 @@ def convertir(elem):
         for i in range(len(elem)):
             elem[i] = elem[i].strip().split(" ")
 
-        testouet = (2, notL)
+        res_convert = (2, notL)
 
     else:
         elem = elem.split()
 
-    return elem, testouet
+    return elem, res_convert
 
 
-def recherche(changement, test=False):
+def search_file(key_words, test=False):
     liste = []
 
     if test in (1, 2):
-        for dossier,  sous_dossiers,  fichiers in os.walk(music_dir):
-            for fichier in fichiers:
-                for elem in changement:
+        for _,  _,  files in os.walk(music_dir):
+            for file in files:
+                for elem in key_words:
                     j = 0
                     for i in range(len(elem)):
-                        if (str(elem[i]).lower() in fichier.lower()) and fichier.endswith(".mp3"):
+                        if (str(elem[i]).lower() in file.lower()) and file.endswith(".mp3"):
                             j += 1
                     if j == len(elem):
-                        liste.append(fichier)
+                        liste.append(file)
 
-    if isinstance(test, tuple):
-        for dossier,  sous_dossiers,  fichiers in os.walk(music_dir):
-            for fichier in fichiers:
-                for elem in changement:
+    elif isinstance(test, tuple):
+        for _,  _,  files in os.walk(music_dir):
+            for file in files:
+                for elem in key_words:
                     j = 0
                     for i in range(len(elem)):
-                        if (str(elem[i]).lower() in fichier.lower() and i != test[1]) and fichier.endswith(".mp3"):
+                        if (str(elem[i]).lower() in file.lower() and i != test[1]) and file.endswith(".mp3"):
                             j += 1
                     if j == len(elem):
-                        liste.append(fichier)
+                        liste.append(file)
 
     else:
-        for dossier,  sous_dossiers,  fichiers in os.walk(music_dir):
-            for fichier in fichiers:
+        for _,  _,  files in os.walk(music_dir):
+            for file in files:
                 i = 0
                 j = 0
-                while i < len(changement):
-                    if str(changement[i]).lower() in fichier.lower() and fichier.endswith(".mp3"):
+                while i < len(key_words):
+                    if str(key_words[i]).lower() in file.lower() and file.endswith(".mp3"):
                         j += 1
                     i += 1
-                if j == len(changement):
-                    liste.append(fichier)
+                if j == len(key_words):
+                    liste.append(file)
     return liste
 
-def ranchercher(changement):
-    for dossier, sous_dossiers, fichiers in os.walk(music_dir):
-        for fichier in fichiers:
-            if changement.lower() in fichier.lower() and fichier.endswith(".mp3"):
-                return f"{dossier}/{fichier}".replace("\\", "/")
+def ranchercher(name):
+    # Function that return the folder name
+    for folder, sub_folder, files in os.walk(music_dir):
+        for file in files:
+            if name.lower() in file.lower() and file.endswith(".mp3"):
+                return f"{folder}/{file}".replace("\\", "/")
     return None
 
 
-def telecharger(url):
+def download_url(url):
     url = url.replace("```", "").replace("`", "")
 
     if ("=" in url and "/" in url and " " not in url) or ("/" in url and " " not in url):
@@ -210,9 +248,9 @@ def search_internet_music(music_name):
 
     search_results = re.findall(r"watch\?v=(\S{11})", formatUrl.read().decode())
     clip2 = "https://www.youtube.com/watch?v=" + "{}".format(search_results[0])
-    return telecharger(clip2)
+    return download_url(clip2)
 
-# ------------------------CLASSE------------------------------------------------
+# ------------------------CLASS------------------------------------------------
 
 class MusicManager:
     def __init__(self, ctx):
@@ -272,14 +310,14 @@ class MusicManager:
     def add_song_to_playlist(self, name, music):
         play = self.load_playlist_file(name)
 
-        music = telecharger(music)
-        elem, testouet = convertir(music)
-        m = recherche(elem, testouet)
+        music = download_url(music)
+        elem, res_convert = convert_request(music)
+        m = search_file(elem, res_convert)
 
         if not m:
             t = search_internet_music(music)
-            elem, testouet = convertir(t)
-            m = recherche(elem, testouet)
+            elem, res_convert = convert_request(t)
+            m = search_file(elem, res_convert)
 
         if not m:
             return
@@ -295,8 +333,8 @@ class MusicManager:
     def remove_song_from_playlist(self, name, music):
         play = self.load_playlist_file(name)
 
-        elem, testouet = convertir(music)
-        m = recherche(elem, testouet)
+        elem, res_convert = convert_request(music)
+        m = search_file(elem, res_convert)
 
         if not play or not m:
             return None
@@ -352,13 +390,13 @@ class MusicManager:
         self.playlist = self.load_playlist_file(name)
 
         if not self.playlist:
-            await ctx.send("Error! playlist not found")
+            await ctx.send(playlist_not_found)
             return
 
         shuffle(self.playlist)
 
         if lecteur(self):
-            await ctx.send(f"Playing: {self.current_music} [{self.digit_timer}]")
+            await ctx.send(f"{playing_msg}: {self.current_music} [{self.digit_timer}]")
 
 
     @tasks.loop(seconds=1)
@@ -443,12 +481,11 @@ def lecteur(serv, music: str=None, replay=False):
     return True
 
 
-# -----------------------------INFO STATISTIQUES--------------------------------
+# -----------------------------EVENTS--------------------------------
 
 
 @client.event
 async def on_ready():
-    await client.change_presence(activity=discord.Game("Music go!"), status=discord.Status.online)
     servers = client.guilds
 
     for server in servers:
@@ -481,10 +518,10 @@ async def on_guild_join(ctx):
 @client.event
 async def on_command_error(ctx,  error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send('Please pass in all required arguments')
+        await ctx.send(argument_msg_error)
 
 
-# -----------------------------COMMANDE STATUT VOCAL----------------------------
+# -----------------------------VOICE COMMANDS----------------------------
 
 
 @client.command()
@@ -512,24 +549,24 @@ async def play(ctx, *, music: str):
 
         if voice and voice.is_connected():
             await voice.move_to(channel)
-            print(f"The bot is connected to {channel}")
+            print(f"{connection_msg} {channel}")
         else:
             voice = await channel.connect()
-            print(f"The bot is connected to {channel}")
+            print(f"{connection_msg} {channel}")
 
-        await ctx.send(f"Joined {channel}")
+        await ctx.send(f"{join_msg} {channel}")
 
-    await ctx.send("Getting everything ready now")
+    await ctx.send(get_ready_msg)
 
-    music = telecharger(music)
-    elem, testouet = convertir(music)
-    search = recherche(elem, testouet)
+    music = download_url(music)
+    elem, res_convert = convert_request(music)
+    search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
-        elem, testouet = convertir(music)
-        search = recherche(elem, testouet)
+        elem, res_convert = convert_request(music)
+        search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound)
@@ -537,7 +574,7 @@ async def play(ctx, *, music: str):
 
     serv.search = search
     if lecteur(serv, search):
-        await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
     else:
         await ctx.channel.send(msgnofound)
 
@@ -559,7 +596,7 @@ async def join(ctx):
     else:
         voice = await channel.connect()
 
-    await ctx.send(f"Joined {channel}")
+    await ctx.send(f"{join_msg} {channel}")
 
     return voice
 
@@ -578,15 +615,15 @@ async def leave(ctx):
 
     if voice and voice.is_connected():
         await voice.disconnect()
-        await ctx.send(f"Left {channel}")
+        await ctx.send(f"{left_msg} {channel}")
     else:
-        await ctx.send("I don't think I am in a voice channel")
+        await ctx.send(idk_voice_channel_msg)
 
 
 @client.command()
 async def next(ctx):
     serv = serv_list[ctx.guild.name]
-    await ctx.send("Getting everything ready now")
+    await ctx.send(get_ready_msg)
     if serv.playlist:
         if serv.index_pl+1 < len(serv.playlist)-1:
             serv.index_pl += 1
@@ -607,7 +644,7 @@ async def next(ctx):
             serv.index = 0
 
     if lecteur(serv):
-        await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
 
 
 @client.command(pass_context=True, aliases=["volume"])
@@ -619,7 +656,7 @@ async def vol(ctx, nb):
     voice.source = PCMVolumeTransformer(voice.source)
     voice.source.volume = vol
     serv.volume = vol
-    await ctx.send(f"Volume set on {vol}")
+    await ctx.send(f"{connection_msg} {vol}")
 
 
 @client.command()
@@ -630,23 +667,23 @@ async def loop(ctx):
     else:
         serv.looping = False
 
-    await ctx.send(f"Set looping on {serv.looping}")
+    await ctx.send(f"{set_loop_msg} {serv.looping}")
 
 
 @client.command()
 async def replay(ctx):
     serv = serv_list[ctx.guild.name]
-    await ctx.send("Getting everything ready now")
+    await ctx.send(get_ready_msg)
 
     if lecteur(serv, replay=True):
-        await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
 
 
 @client.command(aliases=["previous"])
 async def pre(ctx):
     serv = serv_list[ctx.guild.name]
 
-    await ctx.send("Getting everything ready now")
+    await ctx.send(get_ready_msg)
     if serv.playlist:
         if serv.index_pl-1 < 0:
             serv.index_pl = len(serv.playlist)-1
@@ -660,58 +697,58 @@ async def pre(ctx):
             serv.index -= 1
 
     if lecteur(serv):
-        await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
 
 
 @client.command(aliases=["w"])
 async def what(ctx):
     serv = serv_list[ctx.guild.name]
     val = serv.timer_music if serv.timer_music > 0 else 0
-    await ctx.send(f"Music: {serv.current_music} [{int(val/60)} : {int(val % 60)}/{serv.digit_timer}]")
+    await ctx.send(f"{music_msg}: {serv.current_music} [{int(val/60)} : {int(val % 60)}/{serv.digit_timer}]")
 
 
 @client.command()
 async def playnext(ctx, *, music):
     serv = serv_list[ctx.guild.name]
 
-    music = telecharger(music)
-    elem, testouet = convertir(music)
-    search = recherche(elem, testouet)
+    music = download_url(music)
+    elem, res_convert = convert_request(music)
+    search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
-        elem, testouet = convertir(music)
-        search = recherche(elem, testouet)
+        elem, res_convert = convert_request(music)
+        search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound)
         return
 
     serv.temp_search = search
-    await ctx.send(f"Added {music}")
+    await ctx.send(f"{added_msg} {music}")
 
 
 @client.command()
 async def add(ctx, *, music):
     serv = serv_list[ctx.guild.name]
 
-    music = telecharger(music)
-    elem, testouet = convertir(music)
-    search = recherche(elem, testouet)
+    music = download_url(music)
+    elem, res_convert = convert_request(music)
+    search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
-        elem, testouet = convertir(music)
-        search = recherche(elem, testouet)
+        elem, res_convert = convert_request(music)
+        search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound)
         return
 
     serv.search = search
-    await ctx.send(f"Added {music}")
+    await ctx.send(f"{added_msg} {music}")
 
 
 @client.command()
@@ -723,9 +760,9 @@ async def pause(ctx):
     if voice and voice.is_playing():
         serv.pause = True
         voice.pause()
-        await ctx.send("Music paused")
+        await ctx.send(connection_msg)
     else:
-        await ctx.send("Music not playing failed pause")
+        await ctx.send(msg_not_playing_error)
 
 
 @client.command()
@@ -737,9 +774,9 @@ async def resume(ctx):
     if voice and voice.is_paused():
         serv.pause = False
         voice.resume()
-        await ctx.send("Resumed music")
+        await ctx.send(resume_msg)
     else:
-        await ctx.send("Music is not paused")
+        await ctx.send(music_not_paused_msg)
 
 
 @client.command(aliases=["stop"])
@@ -751,13 +788,13 @@ async def stopmusic(ctx):
     if voice and voice.is_playing():
         voice.stop()
         serv.reset_values()
-        await ctx.send("Music stopped")
+        await ctx.send(stop_msg)
 
     else:
-        await ctx.send("No music playing failed to stop")
+        await ctx.send(failed_stop)
 
 
-# --------------- playlistes --------------
+# --------------- PLAYLISTS COMMANDS --------------
 
 
 @client.command()
@@ -768,7 +805,7 @@ async def ppl(ctx, *, name):
     serv.playlist = serv.load_playlist_file(name)
 
     if not serv.playlist:
-        await ctx.send("Error! playlist not found")
+        await ctx.send(playlist_not_found)
         return
 
     shuffle(serv.playlist)
@@ -787,16 +824,16 @@ async def ppl(ctx, *, name):
 
         if voice and voice.is_connected():
             await voice.move_to(channel)
-            print(f"The bot is connected to {channel}")
+            print(f"{connection_msg} {channel}")
         else:
             voice = await channel.connect()
-            print(f"The bot is connected to {channel}")
+            print(f"{connection_msg} {channel}")
 
-        await ctx.send(f"Joined {channel}")
+        await ctx.send(f"{join_msg} {channel}")
 
     if lecteur(serv):
-        await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
-        await ctx.send(f"Playing {name} playlist")
+        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(f"{playing_msg} {name} {playlist_msg}")
 
 
 @client.command()
@@ -805,10 +842,10 @@ async def apl(ctx, *, music):
     serv.next_playlist.append(serv.load_playlist_file(music))
 
     if not serv.playlist:
-        await ctx.send("Error! playlist not found")
+        await ctx.send(playlist_not_found)
         return False
 
-    await ctx.send(f"Added: {music} to queue!")
+    await ctx.send(f"{added_msg}: {music} {to_queue_msg}")
     return True
 
 
@@ -840,7 +877,7 @@ async def lpl(ctx):
 async def delpl(ctx, name):
     serv = serv_list[ctx.guild.name]
     serv.delete_playlist_file(name)
-    await ctx.send(f"playlist {name} has been removed")
+    await ctx.send(remove_playlist_msg.format(name))
 
 
 @client.command()
@@ -852,9 +889,9 @@ async def pl(ctx, *, music: str):
 
     song = serv.add_song_to_playlist(name, music)
     if song:
-        await ctx.send(f"Added {song} to playlist")
+        await ctx.send(f"{added_msg} {song} {to_msg} {playlist_msg}")
     else:
-        await ctx.send("Error!")
+        await ctx.send(error_msg)
 
 @client.command()
 async def dpl(ctx, *, music):
@@ -866,11 +903,11 @@ async def dpl(ctx, *, music):
     song = serv.remove_song_from_playlist(name, music)
 
     if song:
-        await ctx.send(f"Removed {song} from playlist")
+        await ctx.send(remove_from_playlist_msg.format(song))
     else:
-        await ctx.send("Error!")
+        await ctx.send(error_msg)
 
-# ---------------------------------------
+# -------------------------------------------------------------------------
 
 @client.command()
 async def deco(ctx):
@@ -900,20 +937,20 @@ async def deco(ctx):
 
     await kick_channel.delete()
 
-# --------------------------------COMMANDES BASE--------------------------------
+# --------------------------------BASICS COMMANDS-------------------------------
 
 
 @client.command()
 async def size(ctx, *, message):
-    elem, testouet = convertir(message)
-    a = recherche(elem, testouet)
-    await ctx.channel.send(f"{len(a)} results found")
+    elem, res_convert = convert_request(message)
+    a = search_file(elem, res_convert)
+    await ctx.channel.send(f"{len(a)} {result_msg}")
 
 
 @client.command(aliases=["list"])
 async def liste(ctx, *, message="."):
-    elem, testouet = convertir(message)
-    a = recherche(elem, testouet)
+    elem, res_convert = convert_request(message)
+    a = search_file(elem, res_convert)
     playliste = []
     if len(a) <= 10:
         for i in range(len(a)):
@@ -932,18 +969,18 @@ async def liste(ctx, *, message="."):
 
 @client.command(aliases=["sendfile"])
 async def sf(ctx, *, music: str):
-    await ctx.send("Getting everything ready now")
+    await ctx.send(get_ready_msg)
 
-    music = telecharger(music)
+    music = download_url(music)
 
-    elem, testouet = convertir(music)
-    search = recherche(elem, testouet)
+    elem, res_convert = convert_request(music)
+    search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound+internet_msg)
         music = search_internet_music(music)
-        elem, testouet = convertir(music)
-        search = recherche(elem, testouet)
+        elem, res_convert = convert_request(music)
+        search = search_file(elem, res_convert)
 
     if not search:
         await ctx.send(msgnofound)
@@ -953,10 +990,10 @@ async def sf(ctx, *, music: str):
     b = ranchercher(file)
 
     if os.path.getsize(b) >= 8000000:
-        await ctx.send(f"The file : {file} is too heavy")
+        await ctx.send(heavy_file_msg.format(file))
         return
 
-    await ctx.send(f"sending file {file}")
+    await ctx.send(f"{send_file_msg} {file}")
     with open(b,  'rb') as fp:
         await ctx.channel.send(file=File(fp,  file))
 
@@ -984,7 +1021,7 @@ async def moveall(ctx, *, chan=""):
             pass
 
 
-# ------------------------------------Tasks-------------------------------------
+# ------------------------------------TASKS-------------------------------------
 
 
 @client.command()
@@ -1002,7 +1039,7 @@ async def reboot(ctx):
 
     serv.reset_values()
 
-    await ctx.send("Restarting bot")
+    await ctx.send(restart_msg)
     os.execv(sys.executable, ["None", os.path.basename(sys.argv[0])])
 
 

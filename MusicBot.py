@@ -13,7 +13,7 @@ import os.path
 import discord
 
 
-version = "1.2.7"
+version = "1.2.8"
 prefix = "!"
 
 try:
@@ -27,7 +27,7 @@ except FileNotFoundError:
 intents = discord.Intents.default()
 # intents.presences = True
 intents.members = True
-client = commands.Bot(command_prefix=prefix, intents=intents, activity=discord.Game("Music go!"), status=discord.Status.online)
+client = commands.Bot(command_prefix=commands.when_mentioned_or(prefix), intents=intents, activity=discord.Game("Music go!"), status=discord.Status.online)
 
 
 idk_voice_channel_msg = "I don't think I am in a voice channel"
@@ -64,9 +64,9 @@ to_msg = "to"
 
 serv_list: dict = {}
 
-depart = os.getcwd().replace("\\", "/")
+base_path = os.getcwd().replace("\\", "/")
 
-music_dir = f"{depart}/Musica"
+music_dir = f"{base_path}/Musica"
 playlist_dir = f"{music_dir}/playlists"
 down_dir = f"{music_dir}/random"
 
@@ -189,7 +189,7 @@ def search_file(key_words, test=False):
                     liste.append(file)
     return liste
 
-def ranchercher(name):
+def get_file_path(name):
     # Function that return the folder name
     for folder, sub_folder, files in os.walk(music_dir):
         for file in files:
@@ -212,7 +212,7 @@ def download_url(url):
             ide = ide[-1]
             music = ide
 
-        if ranchercher(music):
+        if get_file_path(music):
             return music
 
         ydl_opts = {
@@ -395,7 +395,7 @@ class MusicManager:
 
         shuffle(self.playlist)
 
-        if lecteur(self):
+        if music_player(self):
             await ctx.send(f"{playing_msg}: {self.current_music} [{self.digit_timer}]")
 
 
@@ -431,10 +431,10 @@ class MusicManager:
                     self.index = 0
 
             self.timer_music = 0
-            lecteur(self)
+            music_player(self)
 
 
-def lecteur(serv, music: str=None, replay=False):
+def music_player(serv, music: str=None, replay=False):
     if replay:
         pass
 
@@ -456,7 +456,7 @@ def lecteur(serv, music: str=None, replay=False):
         serv.current_music = serv.search[serv.index]
 
 
-    serv.path_to_current_music = ranchercher(serv.current_music)
+    serv.path_to_current_music = get_file_path(serv.current_music)
     if not serv.path_to_current_music:
         return False
 
@@ -573,7 +573,7 @@ async def play(ctx, *, music: str):
         return
 
     serv.search = search
-    if lecteur(serv, search):
+    if music_player(serv, search):
         await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
     else:
         await ctx.channel.send(msgnofound)
@@ -643,7 +643,7 @@ async def next(ctx):
         else:
             serv.index = 0
 
-    if lecteur(serv):
+    if music_player(serv):
         await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
 
 
@@ -675,7 +675,7 @@ async def replay(ctx):
     serv = serv_list[ctx.guild.name]
     await ctx.send(get_ready_msg)
 
-    if lecteur(serv, replay=True):
+    if music_player(serv, replay=True):
         await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
 
 
@@ -696,7 +696,7 @@ async def pre(ctx):
         else:
             serv.index -= 1
 
-    if lecteur(serv):
+    if music_player(serv):
         await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
 
 
@@ -831,7 +831,7 @@ async def ppl(ctx, *, name):
 
         await ctx.send(f"{join_msg} {channel}")
 
-    if lecteur(serv):
+    if music_player(serv):
         await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
         await ctx.send(f"{playing_msg} {name} {playlist_msg}")
 
@@ -987,7 +987,7 @@ async def sf(ctx, *, music: str):
         return
 
     file = choice(search)
-    b = ranchercher(file)
+    b = get_file_path(file)
 
     if os.path.getsize(b) >= 8000000:
         await ctx.send(heavy_file_msg.format(file))

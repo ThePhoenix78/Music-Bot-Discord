@@ -3,6 +3,7 @@ import re, urllib.parse, urllib.request, sys
 from discord import FFmpegPCMAudio, PCMVolumeTransformer, File
 from discord.ext import commands, tasks
 from random import choice, shuffle
+from unicodedata import normalize
 from yt_dlp import YoutubeDL
 from discord.utils import get
 from json import load, dumps
@@ -29,6 +30,7 @@ intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=commands.when_mentioned_or(prefix), intents=intents, activity=discord.Game("Music go!"), status=discord.Status.online)
 
+dis_status = ['waiting for you', "Music... Music everywhere", "github : https://github.com/ThePhoenix78/Phoe-Discord-Music"]
 
 idk_voice_channel_msg = "I don't think I am in a voice channel"
 argument_msg_error = 'Please pass in all required arguments'
@@ -198,6 +200,10 @@ def get_file_path(name):
     return None
 
 
+def filtre_message(message, code):
+    return normalize('NFD', message).encode(code, 'ignore').decode("utf8").strip()
+
+
 def download_url(url):
     url = url.replace("```", "").replace("`", "")
 
@@ -236,6 +242,7 @@ def download_url(url):
         for name in os.listdir():
             if music in name:
                 os.system('move /Y {} {}'.format(f'"{name}"', f'{down_dir}/"{name}"'))
+                sleep(0.3)
                 break
 
         url = f'{name}'
@@ -747,6 +754,7 @@ async def add(ctx, *, music):
         await ctx.send(msgnofound)
         return
 
+    shuffle(search)
     serv.search = search
     await ctx.send(f"{added_msg} {music}")
 
@@ -1043,7 +1051,6 @@ async def reboot(ctx):
     os.execv(sys.executable, ["None", os.path.basename(sys.argv[0])])
 
 
-dis_status = ['waiting for you', "Music... Music everywhere"]
 iter = 0
 @tasks.loop(seconds=127)
 async def change_status():

@@ -556,10 +556,14 @@ async def ping(ctx):
 @client.command(pass_context=True, aliases=["p"])
 async def play(ctx, *, music: str):
     serv = serv_list[ctx.guild.id]
-    serv.reset_values()
 
-    channel = ctx.message.author.voice.channel
-    voice = get(client.voice_clients,  guild=ctx.guild)
+    try:
+        channel = ctx.message.author.voice.channel
+        voice = get(client.voice_clients,  guild=ctx.guild)
+    except Exception:
+        return
+
+    serv.reset_values()
 
     if not voice or (voice and not voice.is_connected()):
         channel = ctx.message.author.voice.channel
@@ -826,16 +830,13 @@ async def stopmusic(ctx):
 async def ppl(ctx, *, name):
     serv = serv_list[ctx.guild.id]
 
-    serv.index_pl = 0
-    serv.playlist = serv.load_playlist_file(name)
-
-    if not serv.playlist:
-        await ctx.send(playlist_not_found)
+    try:
+        channel = ctx.message.author.voice.channel
+        voice = get(client.voice_clients,  guild=ctx.guild)
+    except Exception:
         return
 
-    shuffle(serv.playlist)
-
-    voice = get(client.voice_clients,  guild=ctx.guild)
+    serv.reset_values()
 
     if not voice or (voice and not voice.is_connected()):
         channel = ctx.message.author.voice.channel
@@ -849,16 +850,25 @@ async def ppl(ctx, *, name):
 
         if voice and voice.is_connected():
             await voice.move_to(channel)
-            print(f"{connection_msg} {channel}")
+            print(f"The bot is connected to {channel}")
         else:
             voice = await channel.connect()
-            print(f"{connection_msg} {channel}")
+            print(f"The bot is connected to {channel}")
 
-        await ctx.send(f"{join_msg} {channel}")
+        await ctx.send(f"Joined {channel}")
+
+    serv.index_pl = 0
+    serv.playlist = serv.load_playlist_file(name)
+
+    if not serv.playlist:
+        await ctx.send(f"Error! playlist {name} not found")
+        return
+
+    shuffle(serv.playlist)
 
     if music_player(serv):
-        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
-        await ctx.send(f"{playing_msg} {name} {playlist_msg}")
+        await ctx.send(f"Playing: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(f"Playing {name} playlist")
 
 
 @client.command()

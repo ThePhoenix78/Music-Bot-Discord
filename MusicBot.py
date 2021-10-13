@@ -264,7 +264,7 @@ class MusicManager:
         self.reset_values()
 
         self.guild = ctx
-        self.path_play = f"{playlist_dir}/{self.guild.name}.json"
+        self.path_play = f"{playlist_dir}/{self.guild.id}.json"
 
 
     def reset_values(self):
@@ -496,12 +496,12 @@ async def on_ready():
     servers = client.guilds
 
     for server in servers:
-        serv_list[server.name] = MusicManager(server)
-        if not Path(f'{playlist_dir}/{server.name}.json').exists():
-            a = open(f'{playlist_dir}/{server.name}.json', "w")
+        serv_list[server.id] = MusicManager(server)
+        if not Path(f'{playlist_dir}/{server.id}.json').exists():
+            a = open(f'{playlist_dir}/{server.id}.json', "w")
             a.write("{}")
             a.close()
-        serv_list[server.name].time_music.start()
+        serv_list[server.id].time_music.start()
 
     change_status.start()
     print("version : ", f"{os.path.basename(sys.argv[0])} {version}")
@@ -514,12 +514,12 @@ async def on_guild_join(ctx):
     servers = client.guilds
     for server in servers:
         if server not in serv_list.keys():
-            serv_list[server.name] = MusicManager(server)
-            if not Path(f'{playlist_dir}/{server.name}.json').exists():
-                a = open(f'{playlist_dir}/{server.name}.json', "w")
+            serv_list[server.id] = MusicManager(server)
+            if not Path(f'{playlist_dir}/{server.id}.json').exists():
+                a = open(f'{playlist_dir}/{server.id}.json', "w")
                 a.write("{}")
                 a.close()
-            serv_list[server.name].time_music.start()
+            serv_list[server.id].time_music.start()
 
 
 @client.event
@@ -527,6 +527,23 @@ async def on_command_error(ctx,  error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(argument_msg_error)
 
+
+@client.event
+async def on_voice_state_update(member, before, after):
+    serv = serv_list[member.guild.id]
+    voice_state = member.guild.voice_client
+
+    if not (voice_state and len(voice_state.channel.members) == 1):
+        return
+
+    voice = get(client.voice_clients,  guild=serv.guild)
+
+    if voice and voice.is_playing():
+        voice.stop()
+
+    if voice and voice.is_connected():
+        await voice.disconnect()
+    serv.reset_values()
 
 # -----------------------------VOICE COMMANDS----------------------------
 
@@ -538,7 +555,7 @@ async def ping(ctx):
 
 @client.command(pass_context=True, aliases=["p"])
 async def play(ctx, *, music: str):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     serv.reset_values()
 
     channel = ctx.message.author.voice.channel
@@ -610,7 +627,7 @@ async def join(ctx):
 
 @client.command()
 async def leave(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     channel = ctx.message.author.voice.channel
     voice = get(client.voice_clients,  guild=ctx.guild)
@@ -629,7 +646,7 @@ async def leave(ctx):
 
 @client.command()
 async def next(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     await ctx.send(get_ready_msg)
     if serv.playlist:
         if serv.index_pl+1 < len(serv.playlist)-1:
@@ -656,7 +673,7 @@ async def next(ctx):
 
 @client.command(pass_context=True, aliases=["volume"])
 async def vol(ctx, nb):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     vol = int(nb)
     vol = vol/10 if vol<=1 else vol/100
     voice = get(client.voice_clients,  guild=ctx.guild)
@@ -668,7 +685,7 @@ async def vol(ctx, nb):
 
 @client.command()
 async def loop(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     if not serv.looping:
         serv.looping = True
     else:
@@ -679,7 +696,7 @@ async def loop(ctx):
 
 @client.command()
 async def replay(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     await ctx.send(get_ready_msg)
 
     if music_player(serv, replay=True):
@@ -688,7 +705,7 @@ async def replay(ctx):
 
 @client.command(aliases=["previous"])
 async def pre(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     await ctx.send(get_ready_msg)
     if serv.playlist:
@@ -709,14 +726,14 @@ async def pre(ctx):
 
 @client.command(aliases=["w"])
 async def what(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     val = serv.timer_music if serv.timer_music > 0 else 0
     await ctx.send(f"{music_msg}: {serv.current_music} [{int(val/60)} : {int(val % 60)}/{serv.digit_timer}]")
 
 
 @client.command()
 async def playnext(ctx, *, music):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     music = download_url(music)
     elem, res_convert = convert_request(music)
@@ -738,7 +755,7 @@ async def playnext(ctx, *, music):
 
 @client.command()
 async def add(ctx, *, music):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     music = download_url(music)
     elem, res_convert = convert_request(music)
@@ -761,7 +778,7 @@ async def add(ctx, *, music):
 
 @client.command()
 async def pause(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     voice = get(client.voice_clients,  guild=ctx.guild)
 
@@ -775,7 +792,7 @@ async def pause(ctx):
 
 @client.command()
 async def resume(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     voice = get(client.voice_clients,  guild=ctx.guild)
 
@@ -789,7 +806,7 @@ async def resume(ctx):
 
 @client.command(aliases=["stop"])
 async def stopmusic(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     voice = get(client.voice_clients,  guild=ctx.guild)
 
@@ -807,7 +824,7 @@ async def stopmusic(ctx):
 
 @client.command()
 async def ppl(ctx, *, name):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     serv.index_pl = 0
     serv.playlist = serv.load_playlist_file(name)
@@ -846,7 +863,7 @@ async def ppl(ctx, *, name):
 
 @client.command()
 async def apl(ctx, music):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     val = serv.load_playlist_file(music)
     if val:
         serv.next_playlist.append(val)
@@ -859,7 +876,7 @@ async def apl(ctx, music):
 
 @client.command()
 async def rpl(ctx, name):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     val = "```"+"\n".join(serv.load_playlist_file(name))+"```"
 
@@ -877,20 +894,20 @@ async def rpl(ctx, name):
 
 @client.command()
 async def lpl(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     await ctx.send("```"+"\n".join(serv.get_playlist_name())+"```")
 
 
 @client.command()
 async def delpl(ctx, name):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     serv.delete_playlist_file(name)
     await ctx.send(remove_playlist_msg.format(name))
 
 
 @client.command()
 async def pl(ctx, *, music: str):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     music = music.rsplit(" ", 1)
     name = music[1]
     music = music[0]
@@ -903,7 +920,7 @@ async def pl(ctx, *, music: str):
 
 @client.command()
 async def dpl(ctx, *, music):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
     music = music.rsplit(" ", 1)
     name = music[1]
     music = music[0]
@@ -1034,7 +1051,7 @@ async def moveall(ctx, *, chan=""):
 
 @client.command()
 async def reboot(ctx):
-    serv = serv_list[ctx.guild.name]
+    serv = serv_list[ctx.guild.id]
 
     await client.change_presence(activity=discord.Game("Shutting down..."), status=discord.Status.dnd)
     voice = get(client.voice_clients,  guild=ctx.guild)

@@ -845,16 +845,16 @@ async def ppl(ctx, *, name):
 
 
 @client.command()
-async def apl(ctx, *, music):
+async def apl(ctx, music):
     serv = serv_list[ctx.guild.name]
-    serv.next_playlist.append(serv.load_playlist_file(music))
+    val = serv.load_playlist_file(music)
+    if val:
+        serv.next_playlist.append(val)
+        await ctx.send(f"Added: {music} to queue!")
+        return True
 
-    if not serv.playlist:
-        await ctx.send(playlist_not_found)
-        return False
-
-    await ctx.send(f"{added_msg}: {music} {to_queue_msg}")
-    return True
+    await ctx.send(f"Error! playlist {music} not found")
+    return False
 
 
 @client.command()

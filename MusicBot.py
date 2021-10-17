@@ -259,13 +259,13 @@ def search_internet_music(music_name):
 
 # ------------------------CLASS------------------------------------------------
 
+
 class MusicManager:
     def __init__(self, ctx):
         self.reset_values()
 
         self.guild = ctx
         self.path_play = f"{playlist_dir}/{self.guild.id}.json"
-
 
     def reset_values(self):
         self.playlist = None
@@ -376,7 +376,6 @@ class MusicManager:
         with open(self.path_play, "w", encoding="utf8") as fic:
             fic.write(dumps(info, sort_keys=True, indent=4))
 
-
     def update_playlist_file(self, name, new_list):
         with open(self.path_play, "r", encoding="utf8") as fic:
             info = load(fic)
@@ -405,7 +404,6 @@ class MusicManager:
         if music_player(self):
             await ctx.send(f"{playing_msg}: {self.current_music} [{self.digit_timer}]")
 
-
     @tasks.loop(seconds=1)
     async def time_music(self):
         if (self.timer_music < self.len_music and self.playing):
@@ -419,29 +417,29 @@ class MusicManager:
 
         if self.timer_music >= self.len_music:
             if self.playlist:
-                if self.index_pl+1 < len(self.playlist)-1:
-                    self.index_pl += 1
-
-                elif self.next_playlist and self.index_pl+1 >= len(self.playlist)-1:
+                if self.next_playlist and self.index_pl+1 >= len(self.playlist):
                     self.playlist = self.next_playlist.pop(0)
                     shuffle(self.playlist)
                     self.index_pl = 0
 
-                else:
+                elif self.index_pl+1 >= len(self.playlist):
                     self.index_pl = 0
                     shuffle(self.playlist)
 
-            elif not self.temp_search:
-                if self.index+1 < len(self.search)-1:
-                    self.index += 1
                 else:
+                    self.index_pl += 1
+
+            elif not self.temp_search:
+                if self.index+1 >= len(self.search):
                     self.index = 0
+                else:
+                    self.index += 1
 
             self.timer_music = 0
             music_player(self)
 
 
-def music_player(serv, music: str=None, replay=False):
+def music_player(serv, music: str = None, replay: bool = False):
     if replay:
         pass
 
@@ -461,7 +459,6 @@ def music_player(serv, music: str=None, replay=False):
 
     else:
         serv.current_music = serv.search[serv.index]
-
 
     serv.path_to_current_music = get_file_path(serv.current_music)
     if not serv.path_to_current_music:
@@ -653,23 +650,23 @@ async def next(ctx):
     serv = serv_list[ctx.guild.id]
     await ctx.send(get_ready_msg)
     if serv.playlist:
-        if serv.index_pl+1 < len(serv.playlist)-1:
-            serv.index_pl += 1
-
-        elif serv.next_playlist and serv.index_pl+1 >= len(serv.playlist)-1:
+        if serv.next_playlist and serv.index_pl+1 >= len(serv.playlist):
             serv.playlist = serv.next_playlist.pop(0)
             shuffle(serv.playlist)
             serv.index_pl = 0
 
-        else:
+        elif serv.index_pl+1 >= len(serv.playlist):
             serv.index_pl = 0
             shuffle(serv.playlist)
 
-    elif not serv.temp_search:
-        if serv.index+1 < len(serv.search)-1:
-            serv.index += 1
         else:
+            serv.index_pl += 1
+
+    elif not serv.temp_search:
+        if serv.index+1 >= len(serv.search):
             serv.index = 0
+        else:
+            serv.index += 1
 
     if music_player(serv):
         await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")

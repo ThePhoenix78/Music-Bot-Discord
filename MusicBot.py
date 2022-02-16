@@ -14,16 +14,16 @@ import os.path
 import discord
 
 
-version = "1.2.8"
-prefix = "!"
+version = "1.2.9"
+prefix = ";"
 
+bot_token = ""
 try:
     with open("bot_token", "r") as f:
         bot_token = f.readlines()[0].strip()
 except FileNotFoundError:
     with open("bot_token", "w") as f:
         f.write("TOKEN_HERE")
-    bot_token = ""
 
 intents = discord.Intents.default()
 # intents.presences = True
@@ -32,36 +32,34 @@ client = commands.Bot(command_prefix=commands.when_mentioned_or(prefix), intents
 
 dis_status = ['waiting for you', "Music... Music everywhere", "github : https://github.com/ThePhoenix78/Phoe-Discord-Music"]
 
-idk_voice_channel_msg = "I don't think I am in a voice channel"
-argument_msg_error = 'Please pass in all required arguments'
-msg_not_playing_error = "Music not playing failed pause"
+
+added_song_to_playlist_msg = "Added {} to playlist"
 remove_from_playlist_msg = "Removed {} from playlist"
+idk_voice_channel_msg = "I don't think I am in a voice channel"
+msg_not_playing_error = "Music not playing failed pause"
+music_not_paused_msg = "Music is not paused"
 remove_playlist_msg = "playlist {} has been removed"
+argument_msg_error = 'Please pass in all required arguments'
+playlist_not_found = "Error! playlist not found"
+heavy_file_msg = "The file : {} is too heavy"
+connection_msg = "The bot is connected to {}"
+send_file_msg = "Sending file {}"
 internet_msg = " I will look for it on the internet"
 get_ready_msg = "Getting everything ready now"
 msgnofound = "Error! No music was found locally!"
-playlist_not_found = "Error! playlist not found"
-heavy_file_msg = "The file : {} is too heavy"
-music_not_paused_msg = "Music is not paused"
 failed_stop = "No music playing failed to stop"
-connection_msg = "The bot is connected to"
-connection_msg = "Music paused"
-connection_msg = "Volume set on"
-set_loop_msg = "Set looping on"
-send_file_msg = "sending file"
+pause_msg = "Music paused!"
+volume_msg = "Volume set on {}"
+set_loop_msg = "Set looping on {}"
 resume_msg = "Resumed music"
-result_msg = "results found"
+result_msg = "{} results found"
 restart_msg = "Restarting bot"
 stop_msg = "Music stopped"
-to_queue_msg = "to queue!"
-playlist_msg = "playlist"
-playing_msg = "Playing"
-error_msg = "Error!"
-music_msg = "Music"
-join_msg = "Joined"
-added_msg = "Added"
-left_msg = "Left"
-to_msg = "to"
+error_msg = "An error has occured!"
+join_msg = "Joined {}"
+added_msg = "Added {}"
+left_msg = "Left {}"
+playing_msg = "Playing: {} [{}]"
 
 
 serv_list: dict = {}
@@ -73,7 +71,7 @@ playlist_dir = f"{music_dir}/playlists"
 down_dir = f"{music_dir}/random"
 
 help_msg = """
-`/!\ IMPORTANT NOTE! this bot will load all the musics he know containing the keys words and set it as a playlist /!\`
+`/!\\ IMPORTANT NOTE! this bot will load all the musics he know containing the keys words and set it as a playlist /!\\`
 
 >>> Commands
 
@@ -191,6 +189,7 @@ def search_file(key_words, test=False):
                     liste.append(file)
     return liste
 
+
 def get_file_path(name):
     # Function that return the folder name
     for folder, sub_folder, files in os.walk(music_dir):
@@ -233,7 +232,8 @@ def download_url(url):
             }
 
         with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            ydl.extract_info(url, download=True)
+            # info = ydl.extract_info(url, download=True)
             # video_title = info.get('title', None)
             # video_len = info.get('duration')
             # ydl.download([url])
@@ -282,7 +282,7 @@ class MusicManager:
         self.index_pl = 0
 
         self.playing = False
-        self.volume = 1
+        self.volume = 1.1
 
         self.pause = False
         self.looping = False
@@ -291,22 +291,18 @@ class MusicManager:
         self.len_music: int = 99
         self.digit_timer: str = ""
 
-
     def get_playlist_file(self):
         with open(self.path_play, "r", encoding="utf8") as fic:
             return load(fic)
-
 
     def get_playlist_name(self):
         with open(self.path_play, "r", encoding="utf8") as fic:
             return load(fic).keys()
 
-
     def playlist_exist(self, name):
         return name in self.get_playlist_file().keys()
 
-
-    def load_playlist_file(self, name: str=None):
+    def load_playlist_file(self, name: str = None):
         with open(self.path_play, "r", encoding="utf8") as fic:
             info = load(fic)
         for key, value in info.items():
@@ -353,7 +349,6 @@ class MusicManager:
         except Exception:
             pass
 
-
     def delete_playlist_file(self, name):
         with open(self.path_play, "r", encoding="utf8") as fic:
             info = load(fic)
@@ -365,7 +360,6 @@ class MusicManager:
 
         with open(self.path_play, "w", encoding="utf8") as fic:
             fic.write(dumps(info, sort_keys=True, indent=4))
-
 
     def add_playlist_file(self, name, new_list):
         with open(self.path_play, "r", encoding="utf8") as fic:
@@ -390,7 +384,6 @@ class MusicManager:
                 return True
         return False
 
-
     async def lire_playlist(self, ctx, name):
         self.index_pl = 0
         self.playlist = self.load_playlist_file(name)
@@ -402,7 +395,7 @@ class MusicManager:
         shuffle(self.playlist)
 
         if music_player(self):
-            await ctx.send(f"{playing_msg}: {self.current_music} [{self.digit_timer}]")
+            await ctx.send(playing_msg.format(self.current_music, self.digit_timer))
 
     @tasks.loop(seconds=1)
     async def time_music(self):
@@ -416,7 +409,9 @@ class MusicManager:
         self.playing = False
 
         if self.timer_music >= self.len_music:
-            if self.playlist:
+            if self.looping:
+                pass
+            elif self.playlist:
                 if self.next_playlist and self.index_pl+1 >= len(self.playlist):
                     self.playlist = self.next_playlist.pop(0)
                     shuffle(self.playlist)
@@ -574,12 +569,12 @@ async def play(ctx, *, music: str):
 
         if voice and voice.is_connected():
             await voice.move_to(channel)
-            print(f"{connection_msg} {channel}")
+            print(connection_msg.format(channel))
         else:
             voice = await channel.connect()
-            print(f"{connection_msg} {channel}")
+            print(connection_msg.format(channel))
 
-        await ctx.send(f"{join_msg} {channel}")
+        await ctx.send(join_msg.format(channel))
 
     await ctx.send(get_ready_msg)
 
@@ -599,7 +594,7 @@ async def play(ctx, *, music: str):
 
     serv.search = search
     if music_player(serv, search):
-        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(playing_msg.format(serv.current_music, serv.digit_timer))
     else:
         await ctx.channel.send(msgnofound)
 
@@ -621,7 +616,7 @@ async def join(ctx):
     else:
         voice = await channel.connect()
 
-    await ctx.send(f"{join_msg} {channel}")
+    await ctx.send(join_msg.format(channel))
 
     return voice
 
@@ -640,7 +635,7 @@ async def leave(ctx):
 
     if voice and voice.is_connected():
         await voice.disconnect()
-        await ctx.send(f"{left_msg} {channel}")
+        await ctx.send(left_msg.format(channel))
     else:
         await ctx.send(idk_voice_channel_msg)
 
@@ -669,19 +664,19 @@ async def next(ctx):
             serv.index += 1
 
     if music_player(serv):
-        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(playing_msg.format(serv.current_music, serv.digit_timer))
 
 
 @client.command(pass_context=True, aliases=["volume"])
 async def vol(ctx, nb):
     serv = serv_list[ctx.guild.id]
     vol = int(nb)
-    vol = vol/10 if vol<=1 else vol/100
+    vol = vol/10 if vol <= 1 else vol/100
     voice = get(client.voice_clients,  guild=ctx.guild)
     voice.source = PCMVolumeTransformer(voice.source)
     voice.source.volume = vol
     serv.volume = vol
-    await ctx.send(f"{connection_msg} {vol}")
+    await ctx.send(volume_msg.format(vol))
 
 
 @client.command()
@@ -692,7 +687,7 @@ async def loop(ctx):
     else:
         serv.looping = False
 
-    await ctx.send(f"{set_loop_msg} {serv.looping}")
+    await ctx.send(set_loop_msg.format(serv.looping))
 
 
 @client.command()
@@ -701,7 +696,7 @@ async def replay(ctx):
     await ctx.send(get_ready_msg)
 
     if music_player(serv, replay=True):
-        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(playing_msg.format(serv.current_music, serv.digit_timer))
 
 
 @client.command(aliases=["previous"])
@@ -722,14 +717,14 @@ async def pre(ctx):
             serv.index -= 1
 
     if music_player(serv):
-        await ctx.send(f"{playing_msg}: {serv.current_music} [{serv.digit_timer}]")
+        await ctx.send(playing_msg.format(serv.current_music, serv.digit_timer))
 
 
 @client.command(aliases=["w"])
 async def what(ctx):
     serv = serv_list[ctx.guild.id]
     val = serv.timer_music if serv.timer_music > 0 else 0
-    await ctx.send(f"{music_msg}: {serv.current_music} [{int(val/60)} : {int(val % 60)}/{serv.digit_timer}]")
+    await ctx.send(f"Music : {serv.current_music} [{int(val/60)} : {int(val % 60)}/{serv.digit_timer}]")
 
 
 @client.command()
@@ -751,7 +746,7 @@ async def playnext(ctx, *, music):
         return
 
     serv.temp_search = search
-    await ctx.send(f"{added_msg} {music}")
+    await ctx.send(added_msg.format(music))
 
 
 @client.command()
@@ -774,7 +769,7 @@ async def add(ctx, *, music):
 
     shuffle(search)
     serv.search = search
-    await ctx.send(f"{added_msg} {music}")
+    await ctx.send(added_msg.format(music))
 
 
 @client.command()
@@ -786,7 +781,7 @@ async def pause(ctx):
     if voice and voice.is_playing():
         serv.pause = True
         voice.pause()
-        await ctx.send(connection_msg)
+        await ctx.send(pause_msg)
     else:
         await ctx.send(msg_not_playing_error)
 
@@ -921,9 +916,10 @@ async def pl(ctx, *, music: str):
 
     song = serv.add_song_to_playlist(name, music)
     if song:
-        await ctx.send(f"{added_msg} {song} {to_msg} {playlist_msg}")
+        await ctx.send(added_song_to_playlist_msg.format(song))
     else:
         await ctx.send(error_msg)
+
 
 @client.command()
 async def dpl(ctx, *, music):
@@ -940,6 +936,7 @@ async def dpl(ctx, *, music):
         await ctx.send(error_msg)
 
 # -------------------------------------------------------------------------
+
 
 @client.command()
 async def deco(ctx):
@@ -976,7 +973,7 @@ async def deco(ctx):
 async def size(ctx, *, message):
     elem, res_convert = convert_request(message)
     a = search_file(elem, res_convert)
-    await ctx.channel.send(f"{len(a)} {result_msg}")
+    await ctx.channel.send(result_msg.format(len(a)))
 
 
 @client.command(aliases=["list"])
@@ -1025,13 +1022,14 @@ async def sf(ctx, *, music: str):
         await ctx.send(heavy_file_msg.format(file))
         return
 
-    await ctx.send(f"{send_file_msg} {file}")
+    await ctx.send(send_file_msg.format(str(file)))
+
     with open(b,  'rb') as fp:
         await ctx.channel.send(file=File(fp,  file))
 
 
 @client.command(pass_context=True)
-async def moveall(ctx, *, chan=""):
+async def move(ctx, *, chan=""):
 
     victim = ctx.guild.members
     val = ctx.guild.voice_channels
@@ -1049,7 +1047,7 @@ async def moveall(ctx, *, chan=""):
         try:
             if victim_member.voice.channel in val and ("AFK" not in str(victim_member.voice.channel).upper()):
                 await victim_member.move_to(kick_channel, reason="")
-        except:
+        except Exception:
             pass
 
 
@@ -1076,6 +1074,8 @@ async def reboot(ctx):
 
 
 iter = 0
+
+
 @tasks.loop(seconds=127)
 async def change_status():
     global iter
